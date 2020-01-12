@@ -14,12 +14,75 @@
     kinematics_file="${load_yaml('$(arg kinematics_config)')}"
     />
 
-  <link name="world" />
-
+	<link name="world">
+	  <visual>
+		<origin xyz="0 0 0.06" rpy="${pi/2} 0 0"/>
+		<geometry>
+		  <mesh filename="package://ur_e_description/meshes/ur5e/visual/base_plate.stl" scale="0.001 0.001 0.001" />
+		</geometry>
+	  </visual>
+	  <collision>
+		<origin xyz="0 0 0.06" rpy="${pi/2} 0 0"/>
+		<geometry>
+		  <mesh filename="package://ur_e_description/meshes/ur5e/collision/base_plate.stl" scale="0.001 0.001 0.001" />
+		</geometry>
+	  </collision>
+	</link>
+    
   <joint name="world_joint" type="fixed">
     <parent link="world" />
     <child link = "base_link" />
-    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+    <origin xyz="0.25 0.25 0.07" rpy="0.0 0.0 ${pi}" />
   </joint>
 
+	<link name="vibrator">
+	  <visual>
+		<origin xyz="0 0 0" rpy="${pi/2} 0 ${pi}"/>
+		<geometry>
+		  <mesh filename="package://ur_e_description/meshes/ur5e/visual/vibrator.stl" scale="0.001 0.001 0.001" />
+		</geometry>
+	  </visual>
+	   <collision>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 ${pi}"/>
+        <geometry>
+          <mesh filename="package://ur_e_description/meshes/ur5e/collision/vibrator.stl" scale="0.001 0.001 0.001" />
+        </geometry>
+      </collision>
+	</link>
+    
+  <joint name="world_vibrator_joint" type="fixed">
+    <parent link="world" />
+    <child link = "vibrator" />
+    <origin xyz="0.109 -0.15 0.1" rpy="0.0 0.0 0" />
+  </joint>
+  
+  	<link name="scales">
+	  <visual>
+		<origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+		<geometry>
+		  <mesh filename="package://ur_e_description/meshes/ur5e/visual/scales.stl" scale="0.001 0.001 0.001" />
+		</geometry>
+	  </visual>
+	  <collision>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry>
+          <mesh filename="package://ur_e_description/meshes/ur5e/collision/scales.stl" scale="0.001 0.001 0.001" />
+        </geometry>
+      </collision>
+	</link>
+    
+  <joint name="world_scales_joint" type="fixed">
+    <parent link="world" />
+    <child link = "scales" />
+    <origin xyz="-0.225 -0.16 0.053" rpy="0.0 0.0 0.0" />
+  </joint>
+  
+  <link name="scale_pickup"/>
+  
+  <joint name="scale_scale_pickup_joint" type="fixed">
+    <parent link="scales" />
+    <child link = "scale_pickup" />
+    <origin xyz="-0.026 0.011 ${0.088 + 0.015}" rpy="${pi/2} 0.0 0.0" />
+  </joint>
+  
 </robot>

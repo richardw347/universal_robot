@@ -2,7 +2,10 @@ moveit_setup_assistant_config:
   URDF:
     package: ur_e_description
     relative_path: urdf/ur5e_robot.urdf.xacro
+    xacro_args: ""
   SRDF:
     relative_path: config/ur5e.srdf
   CONFIG:
-    generated_timestamp: 1413877529
+    author_name: Richard Williams
+    author_email: richard.williams@karakuri.com
+    generated_timestamp: 1578856812

@@ -364,6 +364,43 @@
       <parent link="${prefix}wrist_3_link"/>
       <child link="${prefix}tool0"/>
     </joint>
+    
+    <link name="${prefix}gripper_with_tray">
+      <visual>
+        <origin xyz="0 0 -0.004" rpy="0 ${pi} 0"/>
+        <geometry>
+          <mesh filename="package://ur_e_description/meshes/ur5e/visual/gripper_assembly.stl" scale="0.001 0.001 0.001" />
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0 0 -0.004" rpy="0 ${pi} 0"/>
+        <geometry>
+          <mesh filename="package://ur_e_description/meshes/ur5e/visual/gripper_assembly.stl" scale="0.001 0.001 0.001" />
+        </geometry>
+      </collision>
+    </link>
+    
+    <link name="${prefix}tray_planning"/>
+
+    <link name="${prefix}tray"/>
+    
+   <joint name="${prefix}tool0-gripper" type="fixed">
+      <parent link="${prefix}tool0"/>
+      <child link="${prefix}gripper_with_tray"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+    
+    <joint name="${prefix}tool0-tray" type="fixed">
+      <parent link="${prefix}tool0"/>
+      <child link="${prefix}tray"/>
+      <origin xyz="0 -0.096 0.247" rpy="0 0 0"/>
+    </joint>
+
+    <joint name="${prefix}tray-tray_planning" type="fixed">
+      <parent link="${prefix}tray"/>
+      <child link="${prefix}tray_planning"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
 
   </xacro:macro>
 </robot>

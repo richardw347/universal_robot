@@ -7,6 +7,17 @@ controller_list:
       - wrist_1_joint
       - wrist_2_joint
       - wrist_3_joint
+  - name: fake_manipulator_tray_controller
+    joints:
+      - shoulder_pan_joint
+      - shoulder_lift_joint
+      - elbow_joint
+      - wrist_1_joint
+      - wrist_2_joint
+      - wrist_3_joint
   - name: fake_endeffector_controller
+    joints:
+      []
+  - name: fake_tray_planning_eef_controller
     joints:
       []
