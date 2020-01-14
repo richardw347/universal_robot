@@ -133,4 +133,4 @@ class MoveGroupPythonIntefaceTutorial(object):
 
   def execute_plan(self, plan):
     move_group = self.move_group
-    move_group.execute(plan, wait=True)
+    return move_group.execute(plan, wait=True)
