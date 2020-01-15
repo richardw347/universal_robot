@@ -20,7 +20,7 @@ transaction_id = '00000000-0000-0000-0000-000000000000'
 dispenser_id = '00000000-0000-0000-0000-000000000010'
 ticket_item_id = '00000000-0000-0000-0000-000000000002'
 mass = 50000
-simulation_t_ms = 0
+simulation_t_ms = 3000
 pidDbg = 5
 dispense_topic = 'resource/dispenser/dispense/start'
 
@@ -33,6 +33,13 @@ dispense_payload = {
     'pidDbg': pidDbg
 }
 
+def clean_exit():
+  if log_file.test_log_file is not None:
+    log_file.test_log_file.close()
+  if log_file.pid_log_file is not None:
+    log_file.pid_log_file.close()
+  sys.exit()
+  
 def on_connect(client, userdata, flags, rc):
   if rc == 0:
       print("Connected to broker")
@@ -50,8 +57,8 @@ def on_message(client, userdata, message):
       diff = dispense_end - log_file.dispense_start
       
       dispense_reply_struct = json.loads(message.payload.decode())
-      target = int(dispense_reply_struct["mass"])
-      actual = int(dispense_reply_struct["actualMass"]) 
+      target = int(dispense_reply_struct["mass"]) / 1000.0
+      actual = int(dispense_reply_struct["actualMass"]) / 1000.0
       error = target - actual
       
       log_file.target_mass = target
@@ -139,7 +146,7 @@ def main():
         if Test_finished:
           break
         if rospy.is_shutdown():
-          sys.exit()
+          clean_exit()
 
       tray_base1 = geometry_msgs.msg.Pose()
       tray_base1.orientation.x = 0.707
@@ -151,7 +158,7 @@ def main():
       tray_base1.position.z = 0.181 + 0.03
 
       if (not tutorial.go_to_pose_goal(tray_base1)):
-        sys.exit()
+        clean_exit()
 
       grasp_waypoints = []
       grasp = copy.deepcopy(tray_base1)
@@ -165,13 +172,13 @@ def main():
       # print ("============ Press `Enter` to execute a saved path ...")
       # raw_input()
       if not (tutorial.execute_plan(cartesian_plan)):
-        sys.exit()
+        clean_exit()
 
       if(call_gripper_service(1, tutorial.gripper_service)):
           print("Gripper command success")
       else:
           print("Gripper command failed")
-          sys.exit()
+          clean_exit()
       
       retreat_waypoints = []
       retreat = copy.deepcopy(grasp)
@@ -187,7 +194,7 @@ def main():
       # raw_input()
       
       if (not tutorial.execute_plan(cartesian_plan)):
-        sys.exit()
+        clean_exit()
 
       retreat_waypoints = []
 
@@ -219,7 +226,7 @@ def main():
       # print ("============ Press `Enter` to execute a saved path ...")
       # raw_input()
       if (not tutorial.execute_plan(cartesian_plan)):
-        sys.exit()
+        clean_exit()
 
       joints = tutorial.move_group.get_current_joint_values()
       old_5 = joints[5]
@@ -265,7 +272,7 @@ def main():
       # print "============ Press `Enter` to execute a saved path ..."
       # raw_input()
       if (not tutorial.execute_plan(cartesian_plan)):
-        sys.exit()
+        clean_exit()
 
       if(call_gripper_service(0, tutorial.gripper_service)):
           print("Gripper command success")
@@ -286,11 +293,13 @@ def main():
       # print "============ Press `Enter` to execute a saved path ..."
       # raw_input()
       if (not tutorial.execute_plan(cartesian_plan)):
-        sys.exit()
+        clean_exit()
 
   except rospy.ROSInterruptException:
+    clean_exit()
     return
   except KeyboardInterrupt:
+    clean_exit()
     return
 
 if __name__ == '__main__':
