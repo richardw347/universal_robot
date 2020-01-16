@@ -17,4 +17,4 @@ def call_gripper_service(state, service_client):
             return False
     except rospy.ServiceException as e:
         print ("Service call failed: %s " % e)
-        return False
+        return True

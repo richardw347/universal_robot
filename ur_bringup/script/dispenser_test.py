@@ -20,8 +20,8 @@ transaction_id = '00000000-0000-0000-0000-000000000000'
 dispenser_id = '00000000-0000-0000-0000-000000000010'
 ticket_item_id = '00000000-0000-0000-0000-000000000002'
 mass = 50000
-simulation_t_ms = 3000
-pidDbg = 5
+simulation_t_ms = 1000
+pidDbg = 1
 dispense_topic = 'resource/dispenser/dispense/start'
 
 dispense_payload = {
@@ -232,9 +232,9 @@ def main():
       old_5 = joints[5]
       joints[5] += -radians(120)
 
-      tutorial.go_to_joint_state(joints[0], joints[1], joints[2], joints[3], joints[4], joints[5])
+      tutorial.go_to_joint_state(joints[0], joints[1], joints[2], joints[3], joints[4], joints[5], True)
       rospy.sleep(1)
-      tutorial.go_to_joint_state(joints[0], joints[1], joints[2], joints[3], joints[4], old_5)
+      tutorial.go_to_joint_state(joints[0], joints[1], joints[2], joints[3], joints[4], old_5, True)
 
       tray_int2 = geometry_msgs.msg.Pose()
       tray_int2.orientation.x = 0.707

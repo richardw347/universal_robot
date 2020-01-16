@@ -6,6 +6,7 @@ import moveit_msgs.msg
 import geometry_msgs.msg
 from moveit_commander.conversions import pose_to_list
 from ur_msgs.srv import SetIO
+from math import radians
 
 
 def all_close(goal, actual, tolerance):
@@ -72,7 +73,7 @@ class MoveGroupPythonIntefaceTutorial(object):
     self.gripper_service = rospy.ServiceProxy('/ur_hardware_interface/set_io', SetIO)
 
 
-  def go_to_joint_state(self, shoulder_pan, shoulder_lift, elbow, wrist1, wrist2, wrist3):
+  def go_to_joint_state(self, shoulder_pan, shoulder_lift, elbow, wrist1, wrist2, wrist3, unconstrained=False):
     move_group = self.move_group
 
     joint_goal = {
@@ -84,6 +85,10 @@ class MoveGroupPythonIntefaceTutorial(object):
       'wrist_3_joint' : wrist3,
     }
 
+    if(unconstrained):
+      print("Removing path constraints")
+      move_group.clear_path_constraints()
+      
     move_group.go(joint_goal, wait=True)
     move_group.stop()
 
@@ -105,6 +110,20 @@ class MoveGroupPythonIntefaceTutorial(object):
 
   def plan_cartesian_path(self, waypoints):
     move_group = self.move_group
+    
+    orien = moveit_msgs.msg.OrientationConstraint()
+    orien.link_name = "tray_planning"
+    orien.orientation.x = 0.707
+    orien.orientation.y = 0.0
+    orien.orientation.z = 0.00
+    orien.orientation.w = 0.707
+    orien.weight = 1.0
+
+    constr = moveit_msgs.msg.Constraints()
+    constr.name = "no_wrist_flip"
+    constr.orientation_constraints.append(orien)
+    move_group.set_path_constraints(constr)
+
     while True:
       (plan, fraction) = move_group.compute_cartesian_path(
                                         waypoints,   # waypoints to follow
