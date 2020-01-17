@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import sys
 import copy
 import rospy
@@ -11,27 +10,30 @@ import json
 from move_group_interface import MoveGroupPythonIntefaceTutorial
 from gripper_service import call_gripper_service
 import geometry_msgs.msg
-import log_file 
+import log_file
+import config 
 import datetime
 
-pid_reply = 'resource/dispenser/00000000-0000-0000-0000-000000000010/pid/reply'
-dispense_reply = 'resource/dispenser/dispense/reply'
-transaction_id = '00000000-0000-0000-0000-000000000000'
-dispenser_id = '00000000-0000-0000-0000-000000000010'
-ticket_item_id = '00000000-0000-0000-0000-000000000002'
-mass = 50000
-simulation_t_ms = 1000
-pidDbg = 1
+# MQTT Topics
 dispense_topic = 'resource/dispenser/dispense/start'
+pid_reply = 'resource/dispenser/' + config.DISPENSER_ID + '/pid/reply'
+dispense_reply = 'resource/dispenser/dispense/reply'
 
+# Dispense command payload
 dispense_payload = {
-    'transactionId': transaction_id,
-    'dispenserId': dispenser_id,
-    'ticketItemId': ticket_item_id,
-    'mass': mass,
-    'simulation': simulation_t_ms,
-    'pidDbg': pidDbg
+    'transactionId': '00000000-0000-0000-0000-000000000000',
+    'dispenserId': config.DISPENSER_ID,
+    'ticketItemId': '00000000-0000-0000-0000-000000000002',
+    'mass': (config.DISPENSE_MASS * 1000),
+    'simulation': 0,
+    'pidDbg': 1
 }
+
+# ARM CONSTANTS
+TRAY_RETREAT_OFFSET=0.2
+TRAY_LIFT_OFFSET=0.03
+
+HOPPER_LIFT_OFFSET=0.48
 
 def clean_exit():
   if log_file.test_log_file is not None:
@@ -44,7 +46,7 @@ def on_connect(client, userdata, flags, rc):
   if rc == 0:
       print("Connected to broker")
       global Connected
-      Connected = True                #Signal connection
+      Connected = True
   else:
       print("Connection failed")
  
@@ -87,12 +89,10 @@ def on_message(client, userdata, message):
 Connected = False
 Test_finished = False
 
-broker_address= "192.168.8.100"
-port = 1883
-client = mqttClient.Client("Python")               #create new instance
-client.on_connect=on_connect                      #attach function to callback
+client = mqttClient.Client("yoghURt_rig")              
+client.on_connect=on_connect                     
 client.on_message=on_message
-client.connect(broker_address, port=port)          #connect to broker
+client.connect(config.MQTT_BROKER_IP, port=config.MQTT_BROKER_PORT)     
 client.loop_start()
 
 def dispense():
@@ -103,7 +103,6 @@ def dispense():
     client.publish(dispense_topic, json.dumps(dispense_payload))
 
 while True:    #Wait for connection
-    client.connect(broker_address, port=port)          #connect to broker
     time.sleep(0.1)
     if Connected:
       break
@@ -117,11 +116,11 @@ def main():
 
   try:
     print ("----------------------------------------------------------")
-    print ("Welcome to the MoveIt MoveGroup Python Interface Tutorial")
+    print ("Welcome to the yoghURt test rig")
     print ("----------------------------------------------------------")
     print ("Press Ctrl-D to exit at any time")
     print ("")
-    print ("============ Press `Enter` to begin the tutorial by setting up the moveit_commander ...")
+    print ("============ Press `Enter` to begin the test...")
     raw_input()
     tutorial = MoveGroupPythonIntefaceTutorial()
 
@@ -140,7 +139,7 @@ def main():
       
       dispense()
       
-      while True:    #Wait for dispenser
+      while not rospy.is_shutdown():   
         rospy.sleep(0.5)
         print("Waiting for dispenser....")
         if Test_finished:
@@ -154,8 +153,9 @@ def main():
       tray_base1.orientation.z = 0.00
       tray_base1.orientation.w = 0.707
       tray_base1.position.x = -0.251 
-      tray_base1.position.y = -0.149 + 0.2
-      tray_base1.position.z = 0.181 + 0.03
+      tray_base1.position.y = -0.149 + 0.198
+      #tray_base1.position.z = 0.181 + 0.03
+      tray_base1.position.z = 0.164 + 0.03
 
       if (not tutorial.go_to_pose_goal(tray_base1)):
         clean_exit()
@@ -214,10 +214,10 @@ def main():
       tray_int1.orientation.w = 0.707
       tray_int1.position.x = -0.251
       tray_int1.position.y = 0.051
-      tray_int1.position.z = 0.211
+      tray_int1.position.z = 0.194
 
       retreat_waypoints.append(copy.deepcopy(tray_int1))
-      tray_int1.position.z += 0.48
+      tray_int1.position.z += HOPPER_LIFT_OFFSET
       retreat_waypoints.append(copy.deepcopy(tray_int1))
       retreat_waypoints.append(copy.deepcopy(tray_base2))
 
@@ -243,11 +243,11 @@ def main():
       tray_int2.orientation.w = 0.707
       tray_int2.position.x = -0.251
       tray_int2.position.y = 0.051
-      tray_int2.position.z = 0.210 + 0.48
+      tray_int2.position.z = 0.193 + HOPPER_LIFT_OFFSET
 
       place_waypoints = []
       place_waypoints.append(copy.deepcopy(tray_int2))
-      tray_int2.position.z -= 0.48
+      tray_int2.position.z -= HOPPER_LIFT_OFFSET
       place_waypoints.append(copy.deepcopy(tray_int2))
 
       tray_base1 = geometry_msgs.msg.Pose()
@@ -256,8 +256,8 @@ def main():
       tray_base1.orientation.z = 0.00
       tray_base1.orientation.w = 0.707
       tray_base1.position.x = -0.251 
-      tray_base1.position.y = -0.149 + 0.2
-      tray_base1.position.z = 0.181 + 0.03
+      tray_base1.position.y = -0.149 + 0.198
+      tray_base1.position.z = 0.164 + 0.03
 
       place_waypoints.append(tray_base1)
 
