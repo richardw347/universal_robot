@@ -1,5 +1,6 @@
 import datetime
 import os 
+import json
 
 test = 0
 
@@ -26,6 +27,7 @@ if not os.path.exists(log_dir):
 
 pid_log_file=None
 test_log_file=open("./" + log_dir + "/test_log.csv", "a+")
+test_configuration_file=open("./" + log_dir + "/test_config.csv", "a+")
 CSV_DELIMETER = "\t"
 
 def next_dispense_file():
@@ -71,3 +73,6 @@ def append_to_test_log():
     line += str(avg_dispense_time) + "\n"
     test_log_file.write(line)
     print("Logging: %s" %line)
+
+def append_json_to_test_config(data):
+    test_configuration_file.write(json.dumps(data, indent=4))

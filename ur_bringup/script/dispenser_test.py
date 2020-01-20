@@ -2,22 +2,23 @@
 import sys
 import copy
 import rospy
-from math import pi, radians
-from std_msgs.msg import String
 import paho.mqtt.client as mqttClient
 import time
 import json
-from move_group_interface import MoveGroupPythonIntefaceTutorial
-from gripper_service import call_gripper_service
-import geometry_msgs.msg
 import log_file
 import config 
 import datetime
+from transport_interface.transport_interface import TransportInterface
 
 # MQTT Topics
 dispense_topic = 'resource/dispenser/dispense/start'
 pid_reply = 'resource/dispenser/' + config.DISPENSER_ID + '/pid/reply'
 dispense_reply = 'resource/dispenser/dispense/reply'
+pid_config_topic = 'resource/dispenser/' + config.DISPENSER_ID + '/eeprom/pid'
+eeprom_write_topic = 'resource/dispenser/' + config.DISPENSER_ID + '/eeprom/write'
+eeprom_read_topic = 'resource/dispenser/' + config.DISPENSER_ID + '/eeprom/read'
+eeprom_reply_topic = 'resource/dispenser/' + config.DISPENSER_ID + '/eeprom/reply'
+snapshot_reply_topic = 'dispenser/' + config.DISPENSER_ID + '/snapshot/reply'
 
 # Dispense command payload
 dispense_payload = {
@@ -29,11 +30,18 @@ dispense_payload = {
     'pidDbg': 1
 }
 
-# ARM CONSTANTS
-TRAY_RETREAT_OFFSET=0.2
-TRAY_LIFT_OFFSET=0.03
-
-HOPPER_LIFT_OFFSET=0.48
+pid_config_payload = {
+    "idx": 0,
+    "runMx": config.PID_RUNS_MAX,
+    "fKp": int(config.PID_KP * 1000),
+    "fKi": int(config.PID_KI * 1000),
+    "fKd": int(config.PID_KD * 1000),
+    "satMx": config.PID_SAT_MIN,
+    "satMn": config.PID_SAT_MAX,
+    "dt": 1,
+    "off": config.PID_OFFSET,
+    "sampT": config.PID_SAMPLING_TIME
+}
 
 def clean_exit():
   if log_file.test_log_file is not None:
@@ -86,12 +94,34 @@ def on_message(client, userdata, message):
       pid_reply_struct = json.loads (message.payload.decode())
       log_file.append_to_pid_log(pid_reply_struct)
 
+    elif message.topic == eeprom_reply_topic:
+        global eeprom_count
+        eeprom_reply = json.loads(message.payload.decode())
+        if "pid" in eeprom_reply:
+            log_file.append_json_to_test_config(eeprom_reply)
+            eeprom_count += 1
+        elif "scale" in eeprom_reply:
+            log_file.append_json_to_test_config(eeprom_reply)
+            eeprom_count += 1
+        elif "step" in eeprom_reply:
+            log_file.append_json_to_test_config(eeprom_reply)
+            eeprom_count += 1
+        elif "dcMot" in eeprom_reply:
+            log_file.append_json_to_test_config(eeprom_reply)
+            eeprom_count += 1
+    
+    elif message.topic == snapshot_reply_topic:
+        print(message.payload.decode())
+
+
 Connected = False
 Test_finished = False
+eeprom_count = 0
 
-client = mqttClient.Client("yoghURt_rig")              
+client = mqttClient.Client("yoghURt")              
 client.on_connect=on_connect                     
 client.on_message=on_message
+print("Connecting to broker address: %s:%d" %(config.MQTT_BROKER_IP, config.MQTT_BROKER_PORT))
 client.connect(config.MQTT_BROKER_IP, port=config.MQTT_BROKER_PORT)     
 client.loop_start()
 
@@ -101,6 +131,16 @@ def dispense():
     log_file.next_dispense_file()
     log_file.dispense_start = datetime.datetime.now()
     client.publish(dispense_topic, json.dumps(dispense_payload))
+    print("Sending dispense command")    
+
+def set_pid():
+    client.publish(pid_config_topic, json.dumps(pid_config_payload))
+
+def eeprom_write():
+    client.publish(eeprom_write_topic, json.dumps({}))
+
+def eeprom_read():
+    client.publish(eeprom_read_topic, json.dumps({}))
 
 while True:    #Wait for connection
     time.sleep(0.1)
@@ -111,190 +151,60 @@ while True:    #Wait for connection
 
 client.subscribe(dispense_reply)
 client.subscribe(pid_reply)
+client.subscribe(eeprom_reply_topic)
+client.subscribe(snapshot_reply_topic)
+
+def setup_dispenser():
+    test_config = {
+        "test_config":
+        [{
+        "food": config.FOOD_TYPE,
+        "dispenser_id": config.DISPENSER_ID,
+        "dispenser_type": config.DISPENSER_TYPE,
+        "dispense_mass": config.DISPENSE_MASS
+        }]
+    }
+    log_file.append_json_to_test_config(test_config)
+    # print("Setting pid configuration: %s" % str(pid_config_payload))
+    # set_pid()
+    # time.sleep(0.5)
+    # eeprom_write()
+    # print("Writing configuration to eeprom")
+    # time.sleep(0.5)
+    eeprom_read()
+    print("Reading current eeprom config")
+    global eeprom_count
+    while eeprom_count < 4:
+        try:
+            print("waiting for eeprom data")
+            time.sleep(0.1)
+        except KeyboardInterrupt:
+            clean_exit()
+            return
+    log_file.test_configuration_file.close()
+    
 
 def main():
 
   try:
-    print ("----------------------------------------------------------")
-    print ("Welcome to the yoghURt test rig")
-    print ("----------------------------------------------------------")
-    print ("Press Ctrl-D to exit at any time")
-    print ("")
-    print ("============ Press `Enter` to begin the test...")
-    raw_input()
-    tutorial = MoveGroupPythonIntefaceTutorial()
-
-    if(call_gripper_service(0, tutorial.gripper_service)):
-        print("Gripper command success")
-    else:
-        print("Gripper command failed")
-        return
-
-    tutorial.go_to_joint_state(-0.5062235121587358, -1.2046620944108501, 1.9430392512754255, -0.7363732523416645, -0.5064857477164486, -0.0013783038928534966)    
+    ti = TransportInterface()
+    ti.execute_initialise()
 
     while not rospy.is_shutdown():
-      global Test_finished
-      Test_finished = False
-      print("Set command to dispenser")
+        global Test_finished
+        Test_finished = False
+        dispense()
       
-      dispense()
-      
-      while not rospy.is_shutdown():   
-        rospy.sleep(0.5)
-        print("Waiting for dispenser....")
-        if Test_finished:
-          break
-        if rospy.is_shutdown():
-          clean_exit()
+        while True:
+            rospy.sleep(0.5)
+            print("Waiting for dispenser....")
+            if Test_finished:
+                break
+            if rospy.is_shutdown():
+                clean_exit()
 
-      tray_base1 = geometry_msgs.msg.Pose()
-      tray_base1.orientation.x = 0.707
-      tray_base1.orientation.y = 0.0
-      tray_base1.orientation.z = 0.00
-      tray_base1.orientation.w = 0.707
-      tray_base1.position.x = -0.251 
-      tray_base1.position.y = -0.149 + 0.198
-      #tray_base1.position.z = 0.181 + 0.03
-      tray_base1.position.z = 0.164 + 0.03
-
-      if (not tutorial.go_to_pose_goal(tray_base1)):
-        clean_exit()
-
-      grasp_waypoints = []
-      grasp = copy.deepcopy(tray_base1)
-      grasp.position.y -= 0.2 # grasp position
-      grasp_waypoints.append(copy.deepcopy(grasp))
-
-      grasp.position.z -= 0.03
-      grasp_waypoints.append(copy.deepcopy(grasp))
-      cartesian_plan, fraction = tutorial.plan_cartesian_path(grasp_waypoints)
-      print ("Sucessfully planned %f of the trajectory", fraction)
-      # print ("============ Press `Enter` to execute a saved path ...")
-      # raw_input()
-      if not (tutorial.execute_plan(cartesian_plan)):
-        clean_exit()
-
-      if(call_gripper_service(1, tutorial.gripper_service)):
-          print("Gripper command success")
-      else:
-          print("Gripper command failed")
-          clean_exit()
-      
-      retreat_waypoints = []
-      retreat = copy.deepcopy(grasp)
-      retreat.position.z += 0.03 # grasp position
-      retreat_waypoints.append(copy.deepcopy(retreat))
-
-      retreat.position.y += 0.2 # grasp position
-      retreat_waypoints.append(copy.deepcopy(retreat))
-
-      cartesian_plan, fraction = tutorial.plan_cartesian_path(retreat_waypoints)
-      print ("Sucessfully planned %f of the trajectory", fraction)
-      # print ("============ Press `Enter` to execute a saved path ...")
-      # raw_input()
-      
-      if (not tutorial.execute_plan(cartesian_plan)):
-        clean_exit()
-
-      retreat_waypoints = []
-
-      tray_base2 = geometry_msgs.msg.Pose()
-      tray_base2.orientation.x = 0.707
-      tray_base2.orientation.y = 0.0
-      tray_base2.orientation.z = 0.00
-      tray_base2.orientation.w = 0.707
-      tray_base2.position.x = 0.128
-      tray_base2.position.y = -0.166
-      tray_base2.position.z = 0.645
-
-      tray_int1 = geometry_msgs.msg.Pose()
-      tray_int1.orientation.x = 0.707
-      tray_int1.orientation.y = 0.0
-      tray_int1.orientation.z = 0.00
-      tray_int1.orientation.w = 0.707
-      tray_int1.position.x = -0.251
-      tray_int1.position.y = 0.051
-      tray_int1.position.z = 0.194
-
-      retreat_waypoints.append(copy.deepcopy(tray_int1))
-      tray_int1.position.z += HOPPER_LIFT_OFFSET
-      retreat_waypoints.append(copy.deepcopy(tray_int1))
-      retreat_waypoints.append(copy.deepcopy(tray_base2))
-
-      cartesian_plan, fraction = tutorial.plan_cartesian_path(retreat_waypoints)
-      print ("Sucessfully planned %f of the trajectory", fraction)
-      # print ("============ Press `Enter` to execute a saved path ...")
-      # raw_input()
-      if (not tutorial.execute_plan(cartesian_plan)):
-        clean_exit()
-
-      joints = tutorial.move_group.get_current_joint_values()
-      old_5 = joints[5]
-      joints[5] += -radians(120)
-
-      tutorial.go_to_joint_state(joints[0], joints[1], joints[2], joints[3], joints[4], joints[5], True)
-      rospy.sleep(1)
-      tutorial.go_to_joint_state(joints[0], joints[1], joints[2], joints[3], joints[4], old_5, True)
-
-      tray_int2 = geometry_msgs.msg.Pose()
-      tray_int2.orientation.x = 0.707
-      tray_int2.orientation.y = 0.0
-      tray_int2.orientation.z = 0.00
-      tray_int2.orientation.w = 0.707
-      tray_int2.position.x = -0.251
-      tray_int2.position.y = 0.051
-      tray_int2.position.z = 0.193 + HOPPER_LIFT_OFFSET
-
-      place_waypoints = []
-      place_waypoints.append(copy.deepcopy(tray_int2))
-      tray_int2.position.z -= HOPPER_LIFT_OFFSET
-      place_waypoints.append(copy.deepcopy(tray_int2))
-
-      tray_base1 = geometry_msgs.msg.Pose()
-      tray_base1.orientation.x = 0.707
-      tray_base1.orientation.y = 0.0
-      tray_base1.orientation.z = 0.00
-      tray_base1.orientation.w = 0.707
-      tray_base1.position.x = -0.251 
-      tray_base1.position.y = -0.149 + 0.198
-      tray_base1.position.z = 0.164 + 0.03
-
-      place_waypoints.append(tray_base1)
-
-      grasp = copy.deepcopy(tray_base1)
-      grasp.position.y -= 0.2 # grasp position
-      place_waypoints.append(copy.deepcopy(grasp))
-
-      grasp.position.z -= 0.03
-      place_waypoints.append(copy.deepcopy(grasp))
-      cartesian_plan, fraction = tutorial.plan_cartesian_path(place_waypoints)
-      print ("Sucessfully planned %f of the trajectory", fraction)
-      # print "============ Press `Enter` to execute a saved path ..."
-      # raw_input()
-      if (not tutorial.execute_plan(cartesian_plan)):
-        clean_exit()
-
-      if(call_gripper_service(0, tutorial.gripper_service)):
-          print("Gripper command success")
-      else:
-          print("Gripper command failed")
-          return
-      
-      reset_waypoints = []
-      retreat = copy.deepcopy(grasp)
-      retreat.position.z += 0.025 # grasp position
-      reset_waypoints.append(copy.deepcopy(retreat))
-
-      retreat.position.y += 0.2 # grasp position
-      reset_waypoints.append(copy.deepcopy(retreat))
-
-      cartesian_plan, fraction = tutorial.plan_cartesian_path(reset_waypoints)
-      print ("Sucessfully planned %f of the trajectory", fraction)
-      # print "============ Press `Enter` to execute a saved path ..."
-      # raw_input()
-      if (not tutorial.execute_plan(cartesian_plan)):
-        clean_exit()
-
+        ti.execute_tray_pick()
+        ti.execute_retreat_and_dump()
   except rospy.ROSInterruptException:
     clean_exit()
     return
@@ -303,4 +213,5 @@ def main():
     return
 
 if __name__ == '__main__':
+  setup_dispenser()
   main()
