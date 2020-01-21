@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="limited" default="false" doc="If true, limits joint range [-PI, PI] on all joints." />
+  <arg name="limited" default="true" doc="If true, limits joint range [-PI, PI] on all joints." />
   <arg name="kinematics_config" default="$(find ur_e_description)/config/ur5e_default.yaml"/>
 
   <param unless="$(arg limited)" name="robot_description"
